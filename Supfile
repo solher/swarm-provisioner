@@ -1,0 +1,59 @@
+---
+version: 0.4
+
+networks:
+  local:
+    hosts:
+      - localhost
+
+commands:
+  consul:
+    desc: Create a local "consul" Docker machine.
+    run: >
+      docker-machine create -d virtualbox --virtualbox-memory=512 consul; \
+        eval $(docker-machine env consul); \
+        docker-compose -f consul/docker-compose.yml pull; \
+        docker-compose -f consul/docker-compose.yml up -d
+
+  swarm:
+    desc: Create a local "swarm" Docker machine.
+    run: >
+      docker-machine create -d virtualbox --virtualbox-memory=512 --swarm --swarm-master \
+        --swarm-discovery="consul://$(docker-machine ip consul):8500" \
+        --engine-opt="cluster-store=consul://$(docker-machine ip consul):8500" \
+        --engine-opt="cluster-advertise=eth1:2376" \
+        swarm
+
+  infra:
+    desc: Create local "infra" Docker machines.
+    run: >
+      for (( i=1; i<=${NB:-1}; i++ )); do \
+        docker-machine create -d virtualbox --swarm \
+        --swarm-discovery="consul://$(docker-machine ip consul):8500" \
+        --engine-opt="cluster-store=consul://$(docker-machine ip consul):8500" \
+        --engine-opt="cluster-advertise=eth1:2376" \
+        --engine-label="type=infra" \
+        infra-$i; \
+      done
+
+  rm-consul:
+    desc: Remove a local "consul" Docker machine.
+    run: docker-machine kill consul; docker-machine rm consul -y
+
+  rm-swarm:
+    desc: Remove a local "swarm" Docker machine.
+    run: docker-machine kill swarm; docker-machine rm swarm -y
+
+  rm-infra:
+    desc: Remove local "infra" Docker machines.
+    run: >
+      i=1; while docker-machine status infra-$i &> /dev/null; do \
+        docker-machine kill infra-$i; docker-machine rm infra-$i -y; \
+        ((i++)); \
+      done
+
+targets:
+  rm-all:
+    - rm-consul
+    - rm-swarm
+    - rm-infra
