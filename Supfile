@@ -89,9 +89,18 @@ commands:
         ((i++)); \
       done
 
+  rm-app:
+    desc: Remove local "app" Docker machines.
+    run: >
+      i=1; while docker-machine status app-$i &> /dev/null; do \
+        docker-machine stop app-$i; docker-machine rm app-$i -y; \
+        ((i++)); \
+      done
+
 targets:
   rm-all:
     - rm-consul
     - rm-swarm
     - rm-nginx
     - rm-infra
+    - rm-app
