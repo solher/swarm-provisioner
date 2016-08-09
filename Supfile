@@ -12,8 +12,8 @@ commands:
     run: >
       docker-machine create -d virtualbox --virtualbox-memory=512 consul; \
         eval $(docker-machine env consul); \
-        docker-compose -f consul/docker-compose.yml pull; \
-        docker-compose -f consul/docker-compose.yml up -d
+        docker-compose -f sd/docker-compose.yml pull; \
+        docker-compose -f sd/docker-compose.yml up -d
 
   swarm:
     desc: Create a local "swarm" Docker machine.
@@ -23,6 +23,21 @@ commands:
         --engine-opt="cluster-store=consul://$(docker-machine ip consul):8500" \
         --engine-opt="cluster-advertise=eth1:2376" \
         swarm
+
+  nginx:
+    desc: Create a local "nginx" Docker machine.
+    run: >
+      eval $(docker-machine env --swarm swarm); \
+        docker-machine create -d virtualbox --virtualbox-memory=512 --swarm \
+        --swarm-discovery="consul://$(docker-machine ip consul):8500" \
+        --engine-opt="cluster-store=consul://$(docker-machine ip consul):8500" \
+        --engine-opt="cluster-advertise=eth1:2376" \
+        --engine-label="type=nginx" \
+        nginx; \
+        docker-machine ssh nginx "mkdir -p /tmp/swarm/certs"; \
+        docker-machine scp "$DOCKER_CERT_PATH/key.pem" nginx:/tmp/swarm/certs/; \
+        docker-machine scp "$DOCKER_CERT_PATH/cert.pem" nginx:/tmp/swarm/certs/; \
+        docker-machine scp "$DOCKER_CERT_PATH/ca.pem" nginx:/tmp/swarm/certs/
 
   infra:
     desc: Create local "infra" Docker machines.
@@ -38,17 +53,21 @@ commands:
 
   rm-consul:
     desc: Remove a local "consul" Docker machine.
-    run: docker-machine kill consul; docker-machine rm consul -y
+    run: docker-machine stop consul; docker-machine rm consul -y
 
   rm-swarm:
     desc: Remove a local "swarm" Docker machine.
-    run: docker-machine kill swarm; docker-machine rm swarm -y
+    run: docker-machine stop swarm; docker-machine rm swarm -y
+
+  rm-nginx:
+    desc: Remove a local "nginx" Docker machine.
+    run: docker-machine stop nginx; docker-machine rm nginx -y
 
   rm-infra:
     desc: Remove local "infra" Docker machines.
     run: >
       i=1; while docker-machine status infra-$i &> /dev/null; do \
-        docker-machine kill infra-$i; docker-machine rm infra-$i -y; \
+        docker-machine stop infra-$i; docker-machine rm infra-$i -y; \
         ((i++)); \
       done
 
@@ -56,4 +75,5 @@ targets:
   rm-all:
     - rm-consul
     - rm-swarm
+    - rm-nginx
     - rm-infra
