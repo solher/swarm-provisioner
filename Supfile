@@ -56,6 +56,19 @@ commands:
         echo "IP: $(docker-machine ip infra-$i)"
       done
 
+  app:
+    desc: Create local "app" Docker machines.
+    run: >
+      for (( i=1; i<=${NB:-1}; i++ )); do \
+        docker-machine create -d virtualbox --virtualbox-memory=512 --swarm \
+        --swarm-discovery="consul://$(docker-machine ip consul):8500" \
+        --engine-opt="cluster-store=consul://$(docker-machine ip consul):8500" \
+        --engine-opt="cluster-advertise=eth1:2376" \
+        --engine-label="type=app" \
+        app-$i; \
+        echo "IP: $(docker-machine ip app-$i)"
+      done
+
   rm-consul:
     desc: Remove a local "consul" Docker machine.
     run: docker-machine stop consul; docker-machine rm consul -y
