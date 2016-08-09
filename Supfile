@@ -13,7 +13,8 @@ commands:
       docker-machine create -d virtualbox --virtualbox-memory=512 consul; \
         eval $(docker-machine env consul); \
         docker-compose -f sd/docker-compose.yml pull; \
-        docker-compose -f sd/docker-compose.yml up -d
+        docker-compose -f sd/docker-compose.yml up -d; \
+        echo "IP: $(docker-machine ip consul)"
 
   swarm:
     desc: Create a local "swarm" Docker machine.
@@ -22,7 +23,9 @@ commands:
         --swarm-discovery="consul://$(docker-machine ip consul):8500" \
         --engine-opt="cluster-store=consul://$(docker-machine ip consul):8500" \
         --engine-opt="cluster-advertise=eth1:2376" \
-        swarm
+        swarm; \
+        echo "IP: $(docker-machine ip swarm)"; \
+        echo 'To connect the Swarm cluster, run: eval $(docker-machine env --swarm swarm)'
 
   nginx:
     desc: Create a local "nginx" Docker machine.
@@ -37,18 +40,20 @@ commands:
         docker-machine ssh nginx "mkdir -p /tmp/swarm/certs"; \
         docker-machine scp "$DOCKER_CERT_PATH/key.pem" nginx:/tmp/swarm/certs/; \
         docker-machine scp "$DOCKER_CERT_PATH/cert.pem" nginx:/tmp/swarm/certs/; \
-        docker-machine scp "$DOCKER_CERT_PATH/ca.pem" nginx:/tmp/swarm/certs/
+        docker-machine scp "$DOCKER_CERT_PATH/ca.pem" nginx:/tmp/swarm/certs/; \
+        echo "IP: $(docker-machine ip nginx)"
 
   infra:
     desc: Create local "infra" Docker machines.
     run: >
       for (( i=1; i<=${NB:-1}; i++ )); do \
-        docker-machine create -d virtualbox --swarm \
+        docker-machine create -d virtualbox --virtualbox-memory=512 --swarm \
         --swarm-discovery="consul://$(docker-machine ip consul):8500" \
         --engine-opt="cluster-store=consul://$(docker-machine ip consul):8500" \
         --engine-opt="cluster-advertise=eth1:2376" \
         --engine-label="type=infra" \
         infra-$i; \
+        echo "IP: $(docker-machine ip infra-$i)"
       done
 
   rm-consul:
